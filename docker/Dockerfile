@@ -17,12 +17,13 @@ RUN apt-get update -y && \
 RUN pip install --upgrade pip setuptools
 RUN pip install --index-url https://pypi.python.org/simple/ pipx && \
     pipx install poetry --force
+RUN pip install httpx==0.27.2 -U 
 
 # Add poetry to PATH
 ENV PATH="/root/.local/bin:${PATH}"
 
 # 下载 Langchain-Chatchat
-RUN git clone https://github.com/chatchat-space/Langchain-Chatchat.git
+RUN git clone https://github.com/qifuxiao/chatchta.git
 
 # 安装依赖
 WORKDIR /root/Langchain-Chatchat/libs/chatchat-server
