@@ -20,6 +20,8 @@ from chatchat.server.db.repository.knowledge_metadata_repository import (
 from chatchat.server.db.repository.mcp_connection_repository import (
     create_mcp_profile,
 )
+# ensure User Model is imported
+from chatchat.server.db.models.user_model import UserModel
 from chatchat.server.db.session import session_scope
 from chatchat.server.knowledge_base.kb_service.base import (
     KBServiceFactory,

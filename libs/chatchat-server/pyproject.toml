@@ -40,6 +40,7 @@ rapidocr_onnxruntime = "~1.3.8"
 requests = "~2.32.3"
 pathlib = "~1.0.1"
 pyjwt = "~2.8.0"
+passlib = { version = "~1.7.4", extras = ["bcrypt"] }
 elasticsearch = "*"
 numexpr = ">=1" #test
 strsimpy = ">=0.2.1"
