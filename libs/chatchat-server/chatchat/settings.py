@@ -306,10 +306,10 @@ class ApiModelSettings(BaseFileSettings):
 
     model_config = SettingsConfigDict(yaml_file=CHATCHAT_ROOT / "model_settings.yaml")
 
-    DEFAULT_LLM_MODEL: str = "glm4-chat"
+    DEFAULT_LLM_MODEL: str = os.environ.get("DEFAULT_LLM_MODEL", "glm4-chat")
     """默认选用的 LLM 名称"""
 
-    DEFAULT_EMBEDDING_MODEL: str = "bge-m3"
+    DEFAULT_EMBEDDING_MODEL: str = os.environ.get("DEFAULT_EMBEDDING_MODEL", "bge-m3")
     """默认选用的 Embedding 名称"""
 
     Agent_MODEL: str = "" # TODO: 似乎与 LLM_MODEL_CONFIG 重复了
@@ -459,6 +459,15 @@ class ApiModelSettings(BaseFileSettings):
                     "text-embedding-3-small",
                     "text-embedding-3-large",
                 ],
+            }),
+            PlatformConfig(**{
+                "platform_name": "gitee",
+                "platform_type": "openai",
+                "api_base_url": os.environ.get("GITEE_BASE_URL", "https://ai.gitee.com/v1"),
+                "api_key": os.environ.get("GITEE_API_KEY", ""),
+                "api_concurrencies": 5,
+                "llm_models": os.environ.get("GITEE_LLM_MODELS", "Qwen2-72B-Instruct,Qwen2-7B-Instruct,GLM-4-Flash,GLM-4V-Flash").split(","),
+                "embed_models": os.environ.get("GITEE_EMBED_MODELS", "embedding-2").split(","),
             }),
         ]
     """模型平台配置"""
