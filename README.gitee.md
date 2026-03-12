@@ -17,6 +17,7 @@
 ```bash
 git clone https://github.com/qifuxiao/Langchain-Chatchat.git
 cd Langchain-Chatchat
+git checkout gitee-support
 ```
 
 ### 2. 配置环境变量
@@ -53,23 +54,25 @@ DEFAULT_EMBEDDING_MODEL=embedding-2
 
 ```bash
 cd libs/chatchat-server
+
+# 创建虚拟环境
+python -m venv venv
+
+# 激活虚拟环境
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate  # Windows
+
+# 安装依赖
 pip install -r requirements.txt
-```
-
-或使用 Poetry：
-
-```bash
-cd libs/chatchat-server
-poetry install
 ```
 
 ### 5. 初始化项目
 
 ```bash
-# 初始化配置
-chatchat init -x http://127.0.0.1:9997/v1 -l Qwen2-72B-Instruct -e embedding-2
+# 初始化配置 (会自动读取 .env 中的配置)
+chatchat init -l Qwen2-72B-Instruct -e embedding-2
 
-# 或手动初始化知识库
+# 初始化知识库
 chatchat kb -r
 ```
 
@@ -87,12 +90,14 @@ chatchat start
 - API: http://localhost:7861
 - WebUI: http://localhost:8501
 
+---
+
 ## 配置说明
 
 | 环境变量 | 说明 | 默认值 |
 |----------|------|--------|
 | `GITEE_BASE_URL` | Gitee AI API 地址 | https://ai.gitee.com/v1 |
-| `GITEE_API_KEY` | Gitee AI API Key | (必填) |
+| `GITEE_API_KEY` | **必填** - 你的 API Key | (必填) |
 | `GITEE_LLM_MODELS` | 可用的 LLM 模型列表 | Qwen2-72B-Instruct,... |
 | `GITEE_EMBED_MODELS` | 可用的 Embedding 模型列表 | embedding-2 |
 | `DEFAULT_LLM_MODEL` | 默认使用的 LLM 模型 | Qwen2-72B-Instruct |
@@ -108,20 +113,6 @@ chatchat start
 
 ### Embedding 模型
 - embedding-2
-
-## 目录结构
-
-```
-Langchain-Chatchat/
-├── libs/
-│   └── chatchat-server/     # 主服务代码
-│       ├── chatchat/        # 核心代码
-│       ├── .env             # 环境配置
-│       └── requirements.txt # Python 依赖
-├── frontend/                # WebUI 前端
-├── docker/                  # Docker 配置
-└── docs/                    # 文档
-```
 
 ## 常见问题
 
