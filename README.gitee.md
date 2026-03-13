@@ -55,36 +55,31 @@ DEFAULT_EMBEDDING_MODEL=embedding-2
 ```bash
 cd libs/chatchat-server
 
-# 使用 poetry 安装依赖 (会自动创建虚拟环境)
+# 方法1: 使用 pip 安装 (推荐)
+pip install -e . -i https://pypi.org/simple/
+
+# 方法2: 使用 poetry (如有依赖问题请手动处理)
 poetry install
-
-# 激活虚拟环境 (可选，poetry run 会自动使用)
-poetry shell
-```
-
-**或者如果不想使用虚拟环境：**
-```bash
-poetry install --no-root
 ```
 
 ### 5. 初始化项目
 
 ```bash
 # 初始化配置 (会自动读取 .env 中的配置)
-poetry run chatchat init -l Qwen2-72B-Instruct -e embedding-2
+chatchat init -l Qwen2-72B-Instruct -e embedding-2
 
 # 初始化知识库
-poetry run chatchat kb -r
+chatchat kb -r
 ```
 
 ### 6. 启动服务
 
 ```bash
 # 启动所有服务 (API + WebUI)
-poetry run chatchat start -a
+chatchat start -a
 
 # 或只启动 API 服务
-poetry run chatchat start
+chatchat start
 ```
 
 服务启动后：
