@@ -11,11 +11,11 @@ from dotenv import load_dotenv
 from chatchat import __version__
 from chatchat.pydantic_settings_file import *
 
-# 加载 .env 文件
-load_dotenv()
-
 # chatchat 数据目录，必须通过环境变量设置。如未设置则自动使用当前目录。
 CHATCHAT_ROOT = Path(os.environ.get("CHATCHAT_ROOT", ".")).resolve()
+
+# 加载 .env 文件（支持 CHATCHAT_ROOT 目录下的 .env）
+load_dotenv(CHATCHAT_ROOT / ".env")
 
 XF_MODELS_TYPES = {
     "text2image": {"model_family": ["stable_diffusion"]},
