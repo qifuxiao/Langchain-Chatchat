@@ -382,7 +382,7 @@ def get_OpenAIClient(
     httpx_params = {}
     if api_proxy := platform_info.get("api_proxy"):
         httpx_params = {
-            "proxies": api_proxy,
+            "proxy": api_proxy,
             "transport": httpx.HTTPTransport(local_address="0.0.0.0"),
         }
 
