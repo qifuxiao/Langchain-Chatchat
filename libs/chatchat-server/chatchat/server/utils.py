@@ -817,7 +817,9 @@ def get_httpx_client(
         default_proxies.update(proxies)
 
     # construct Client
-    kwargs.update(timeout=timeout, proxies=default_proxies)
+    # httpx uses "proxy" (singular) instead of "proxies"
+    proxy = default_proxies.get("all://") or default_proxies.get("http://") or default_proxies.get("https://")
+    kwargs.update(timeout=timeout, proxy=proxy)
 
     if use_async:
         return httpx.AsyncClient(**kwargs)
