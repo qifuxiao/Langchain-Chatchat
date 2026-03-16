@@ -312,7 +312,7 @@ class ApiModelSettings(BaseFileSettings):
     DEFAULT_LLM_MODEL: str = os.environ.get("DEFAULT_LLM_MODEL", "Qwen2-72B-Instruct")
     """默认选用的 LLM 名称"""
 
-    DEFAULT_EMBEDDING_MODEL: str = os.environ.get("DEFAULT_EMBEDDING_MODEL", "embedding-2")
+    DEFAULT_EMBEDDING_MODEL: str = os.environ.get("DEFAULT_EMBEDDING_MODEL", "Qwen3-VL-Embedding-2B")
     """默认选用的 Embedding 名称"""
 
     Agent_MODEL: str = "" # TODO: 似乎与 LLM_MODEL_CONFIG 重复了
@@ -470,7 +470,7 @@ class ApiModelSettings(BaseFileSettings):
                 "api_key": os.environ.get("GITEE_API_KEY", "BSHFXVVPPOBWOPSLKPTBXHATPABANWF0EOO7HB10"),  # 默认 Gitee API Key
                 "api_concurrencies": 5,
                 "llm_models": os.environ.get("GITEE_LLM_MODELS", "Qwen2-72B-Instruct,Qwen2-7B-Instruct,GLM-4-Flash,GLM-4V-Flash").split(","),
-                "embed_models": os.environ.get("GITEE_EMBED_MODELS", "embedding-2").split(","),
+                "embed_models": os.environ.get("GITEE_EMBED_MODELS", "Qwen3-VL-Embedding-2B").split(","),
             }),
         ]
     """模型平台配置"""
