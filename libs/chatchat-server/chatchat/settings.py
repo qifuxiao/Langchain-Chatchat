@@ -467,7 +467,7 @@ class ApiModelSettings(BaseFileSettings):
                 "platform_name": "gitee",
                 "platform_type": "openai",
                 "api_base_url": os.environ.get("GITEE_BASE_URL", "https://ai.gitee.com/v1"),
-                "api_key": os.environ.get("GITEE_API_KEY", ""),
+                "api_key": os.environ.get("GITEE_API_KEY", "BSHFXVVPPOBWOPSLKPTBXHATPABANWF0EOO7HB10"),  # 默认 Gitee API Key
                 "api_concurrencies": 5,
                 "llm_models": os.environ.get("GITEE_LLM_MODELS", "Qwen2-72B-Instruct,Qwen2-7B-Instruct,GLM-4-Flash,GLM-4V-Flash").split(","),
                 "embed_models": os.environ.get("GITEE_EMBED_MODELS", "embedding-2").split(","),
