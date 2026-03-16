@@ -50,15 +50,23 @@ def get_file_path(knowledge_base_name: str, doc_name: str):
 
 
 def list_kbs_from_folder():
+    kb_root = Settings.basic_settings.KB_ROOT_PATH
+    if not os.path.exists(kb_root):
+        return []
     return [
         f
-        for f in os.listdir(Settings.basic_settings.KB_ROOT_PATH)
-        if os.path.isdir(os.path.join(Settings.basic_settings.KB_ROOT_PATH, f))
+        for f in os.listdir(kb_root)
+        if os.path.isdir(os.path.join(kb_root, f))
     ]
 
 
 def list_files_from_folder(kb_name: str):
     doc_path = get_doc_path(kb_name)
+    
+    # 检查目录是否存在
+    if not os.path.exists(doc_path):
+        return []
+    
     result = []
 
     def is_skiped_path(path: str):
