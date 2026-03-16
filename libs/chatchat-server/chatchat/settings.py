@@ -306,10 +306,10 @@ class ApiModelSettings(BaseFileSettings):
 
     model_config = SettingsConfigDict(yaml_file=CHATCHAT_ROOT / "model_settings.yaml")
 
-    DEFAULT_LLM_MODEL: str = os.environ.get("DEFAULT_LLM_MODEL", "glm4-chat")
+    DEFAULT_LLM_MODEL: str = os.environ.get("DEFAULT_LLM_MODEL", "Qwen2-72B-Instruct")
     """默认选用的 LLM 名称"""
 
-    DEFAULT_EMBEDDING_MODEL: str = os.environ.get("DEFAULT_EMBEDDING_MODEL", "bge-m3")
+    DEFAULT_EMBEDDING_MODEL: str = os.environ.get("DEFAULT_EMBEDDING_MODEL", "embedding-2")
     """默认选用的 Embedding 名称"""
 
     Agent_MODEL: str = "" # TODO: 似乎与 LLM_MODEL_CONFIG 重复了
