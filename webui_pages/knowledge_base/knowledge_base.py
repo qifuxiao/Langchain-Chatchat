@@ -47,7 +47,7 @@ def file_exists(kb: str, selected_rows: List) -> Tuple[str, str]:
     check whether a doc file exists in local knowledge base folder.
     return the file's name and path if it exists.
     """
-    if selected_rows:
+    if selected_rows is not None and len(selected_rows) > 0:
         file_name = selected_rows[0]["file_name"]
         file_path = get_file_path(kb, file_name)
         if os.path.isfile(file_path):

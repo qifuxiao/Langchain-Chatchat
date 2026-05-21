@@ -1,6 +1,6 @@
 import operator
 from abc import ABC, abstractmethod
-
+from langchain_community.embeddings import OpenAIEmbeddings
 import os
 from pathlib import Path
 import numpy as np
