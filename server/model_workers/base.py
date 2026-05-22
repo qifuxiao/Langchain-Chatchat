@@ -62,6 +62,7 @@ class ApiModelParams(ApiConfigParams):
     api_version: Optional[str] = None # for azure
     deployment_name: Optional[str] = None # for azure
     resource_name: Optional[str] = None # for azure
+    model_name: Optional[str] = None # for OpenAI-compatible APIs
 
     temperature: float = TEMPERATURE
     max_tokens: Optional[int] = None
