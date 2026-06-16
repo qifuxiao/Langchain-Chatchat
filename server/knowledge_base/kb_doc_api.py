@@ -67,7 +67,9 @@ def list_files(
     knowledge_base_name = urllib.parse.unquote(knowledge_base_name)
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
-        return ListResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}", data=[])
+        # 知识库不在数据库中，尝试从文件系统读取
+        all_doc_names = list_files_from_folder(knowledge_base_name)
+        return ListResponse(data=all_doc_names)
     else:
         all_doc_names = kb.list_files()
         return ListResponse(data=all_doc_names)

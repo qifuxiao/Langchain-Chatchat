@@ -373,11 +373,9 @@ def get_kb_details() -> List[Dict]:
 
 def get_kb_file_details(kb_name: str) -> List[Dict]:
     kb = KBServiceFactory.get_service_by_name(kb_name)
-    if kb is None:
-        return []
-
+    
     files_in_folder = list_files_from_folder(kb_name)
-    files_in_db = kb.list_files()
+    files_in_db = kb.list_files() if kb else []
     result = {}
 
     for doc in files_in_folder:
