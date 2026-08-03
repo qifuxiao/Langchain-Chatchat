@@ -3,7 +3,7 @@ OpenAI API Worker for Gitee and other OpenAI-compatible APIs.
 """
 import json
 import httpx
-from typing import Dict, List, Optional
+from typing import Dict, Iterator, List
 from fastchat.conversation import Conversation
 from fastchat import conversation as conv
 from configs import logger, log_verbose
@@ -11,7 +11,6 @@ from server.model_workers.base import (
     ApiModelWorker,
     ApiChatParams,
     ApiEmbeddingsParams,
-    ApiConfigParams,
 )
 
 
@@ -26,7 +25,7 @@ class OpenAIWorker(ApiModelWorker):
         super().__init__(*args, **kwargs)
         self.version = self.model_names[0] if self.model_names else None
 
-    def do_chat(self, params: ApiChatParams) -> Dict:
+    def do_chat(self, params: ApiChatParams) -> Iterator[Dict]:
         """
         Execute chat request to OpenAI-compatible API.
         """
@@ -53,43 +52,42 @@ class OpenAIWorker(ApiModelWorker):
             "model": model_name,
             "messages": params.messages,
             "temperature": params.temperature,
-            "max_tokens": params.max_tokens,
-            "stream": False,
+            "stream": True,
         }
+        if params.max_tokens is not None:
+            data["max_tokens"] = params.max_tokens
 
         if log_verbose:
             logger.info(f"OpenAI chat request to {url} with model {model_name}")
 
         timeout_chat = getattr(params, "timeout", 120)
         try:
-            with httpx.Client(timeout=timeout_chat) as client:
-                response = client.post(url, headers=headers, json=data)
+            answer = ""
+            with httpx.Client(timeout=timeout_chat) as client, client.stream(
+                    "POST", url, headers=headers, json=data
+            ) as response:
                 response.raise_for_status()
-                result = response.json()
+                for line in response.iter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if payload == "[DONE]":
+                        break
+                    event = json.loads(payload)
+                    choices = event.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta", {}).get("content")
+                    if delta:
+                        answer += delta
+                        yield {"error_code": 0, "text": answer}
 
-                if log_verbose:
-                    logger.info(f"OpenAI chat response: {result}")
-
-                # Extract the response text
-                if "choices" in result and len(result["choices"]) > 0:
-                    message = result["choices"][0].get("message", {})
-                    content = message.get("content", "")
-                    return {
-                        "error_code": 0,
-                        "text": content,
-                        "model": model_name,
-                    }
-                else:
-                    error_msg = f"Unexpected response format: {result}"
-                    logger.error(error_msg)
-                    return {
-                        "error_code": 500,
-                        "text": error_msg,
-                    }
+            if not answer:
+                yield {"error_code": 500, "text": "OpenAI-compatible API returned no content."}
         except Exception as e:
             error_msg = f"OpenAI chat request failed: {e}"
             logger.error(error_msg)
-            return {
+            yield {
                 "error_code": 500,
                 "text": error_msg,
             }
@@ -98,6 +96,7 @@ class OpenAIWorker(ApiModelWorker):
         """
         Execute embeddings request to OpenAI-compatible API.
         """
+        params.load_config(self.model_names[0])
         api_key = params.api_key or ""
         api_base_url = (params.api_base_url or "").rstrip("/")
         embed_model = params.embed_model or self.DEFAULT_EMBED_MODEL

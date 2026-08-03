@@ -1,0 +1,15 @@
+.git
+.github
+.vscode
+.idea
+.env
+/configs/*.py
+__pycache__
+*.py[cod]
+*.log
+logs
+knowledge_base/*
+!knowledge_base/samples
+tests
+docs
+img

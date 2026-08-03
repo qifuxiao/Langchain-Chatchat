@@ -41,8 +41,11 @@ def get_ChatOpenAI(
         **kwargs: Any,
 ) -> ChatOpenAI:
     config = get_model_worker_config(model_name)
-    if model_name in ["openai-api", "openai"]:
-        model_name = config.get("model_name")
+    # The chat and knowledge-base endpoints call LangChain directly.  Use the
+    # provider model ID for every online provider (including ``gitee-ai``), not
+    # the application's worker alias.
+    if config.get("online_api") and config.get("model_name"):
+        model_name = config["model_name"]
 
     model = ChatOpenAI(
         streaming=streaming,
@@ -69,8 +72,8 @@ def get_OpenAI(
         **kwargs: Any,
 ) -> OpenAI:
     config = get_model_worker_config(model_name)
-    if model_name in ["openai-api", "openai"]:
-        model_name = config.get("model_name")
+    if config.get("online_api") and config.get("model_name"):
+        model_name = config["model_name"]
     model = OpenAI(
         streaming=streaming,
         verbose=verbose,
