@@ -10,4 +10,9 @@ for template in /app/configs/*.py.example; do
     fi
 done
 
+if [ ! -f /app/configs/__init__.py ]; then
+    echo "Missing required configs/__init__.py in image" >&2
+    exit 1
+fi
+
 exec "$@"

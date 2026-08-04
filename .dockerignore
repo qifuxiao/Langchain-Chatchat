@@ -4,6 +4,7 @@
 .idea
 .env
 /configs/*.py
+!/configs/__init__.py
 __pycache__
 *.py[cod]
 *.log
