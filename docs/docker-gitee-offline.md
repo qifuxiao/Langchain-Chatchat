@@ -13,6 +13,9 @@ docker compose build
 docker save -o langchain-chatchat-gitee-0.2.9.tar langchain-chatchat-gitee:0.2.9
 ```
 
+Dockerfile 默认使用阿里云的 Debian 与 PyPI 镜像，可在 `.env` 通过
+`APT_MIRROR_HOST`、`PIP_INDEX_URL`、`PIP_TRUSTED_HOST` 改为公司内部源。它们只影响构建期依赖下载。
+
 把 `langchain-chatchat-gitee-0.2.9.tar`、`docker-compose.yml` 与目标服务器的 `.env` 传到离线服务器。目标服务器执行：
 
 ```bash

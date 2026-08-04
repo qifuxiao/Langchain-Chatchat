@@ -4,6 +4,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APT_MIRROR_HOST: ${APT_MIRROR_HOST:-mirrors.aliyun.com}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-mirrors.aliyun.com}
     environment:
       GITEE_AI_API_BASE_URL: ${GITEE_AI_API_BASE_URL:-https://ai.gitee.com/v1}
       GITEE_AI_API_KEY: ${GITEE_AI_API_KEY:?Set GITEE_AI_API_KEY in .env}
