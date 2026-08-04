@@ -33,7 +33,9 @@ RUN pip install --upgrade pip \
 # Keep this in a separate layer so an application-code update can reuse the
 # expensive Python dependency layer. These resources are therefore present in
 # every offline image and Word document parsing never downloads at runtime.
-ENV NLTK_DATA=/app/nltk_data
+ENV NLTK_DATA=/app/nltk_data \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
 RUN python -m nltk.downloader -d /app/nltk_data \
         punkt punkt_tab averaged_perceptron_tagger_eng \
     && test -d /app/nltk_data/tokenizers/punkt \

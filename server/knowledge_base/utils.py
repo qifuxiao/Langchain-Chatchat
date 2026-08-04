@@ -223,19 +223,32 @@ def make_text_splitter(
                         chunk_overlap=chunk_overlap
                     )
             elif text_splitter_dict[splitter_name]["source"] == "huggingface":  ## 从huggingface加载
-                if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "":
+                tokenizer_name_or_path = text_splitter_dict[splitter_name].get("tokenizer_name_or_path")
+                if not tokenizer_name_or_path:
                     config = get_model_worker_config(llm_model)
-                    text_splitter_dict[splitter_name]["tokenizer_name_or_path"] = \
-                        config.get("model_path")
+                    tokenizer_name_or_path = config.get("model_path")
 
-                if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "gpt2":
+                # Online providers do not have a local Hugging Face model path.
+                # Never pass None to transformers: it becomes a request to
+                # huggingface.co/None and blocks offline document ingestion.
+                if not isinstance(tokenizer_name_or_path, str) or not tokenizer_name_or_path.strip():
+                    logger.warning(
+                        "No local tokenizer configured for %s; using "
+                        "RecursiveCharacterTextSplitter instead.", splitter_name
+                    )
+                    return langchain.text_splitter.RecursiveCharacterTextSplitter(
+                        chunk_size=chunk_size,
+                        chunk_overlap=chunk_overlap,
+                    )
+
+                if tokenizer_name_or_path == "gpt2":
                     from transformers import GPT2TokenizerFast
                     from langchain.text_splitter import CharacterTextSplitter
                     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
                 else:  ## 字符长度加载
                     from transformers import AutoTokenizer
                     tokenizer = AutoTokenizer.from_pretrained(
-                        text_splitter_dict[splitter_name]["tokenizer_name_or_path"],
+                        tokenizer_name_or_path,
                         trust_remote_code=True)
                 text_splitter = TextSplitter.from_huggingface_tokenizer(
                     tokenizer=tokenizer,
