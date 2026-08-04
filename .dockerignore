@@ -13,5 +13,7 @@ knowledge_base/*
 !knowledge_base/samples
 tests
 docs
-img
+# Streamlit's sidebar logo is a runtime asset; keep only that image.
+img/*
+!img/logo-long-chatchat-trans-v2.png
 dist
