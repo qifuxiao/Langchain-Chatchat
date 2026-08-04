@@ -5,7 +5,7 @@ import os
 MODEL_ROOT_PATH = ""
 GITEE_AI_API_BASE_URL = os.getenv("GITEE_AI_API_BASE_URL", "https://ai.gitee.com/v1")
 GITEE_AI_API_KEY = os.getenv("GITEE_AI_API_KEY", "")
-GITEE_AI_CHAT_MODEL = os.getenv("GITEE_AI_CHAT_MODEL", "Qwen2.5-72B-Instruct")
+GITEE_AI_CHAT_MODEL = os.getenv("GITEE_AI_CHAT_MODEL", "Qwen2-7B-Instruct")
 GITEE_AI_EMBEDDING_MODEL = os.getenv("GITEE_AI_EMBEDDING_MODEL", "bce-embedding-base_v1")
 
 # Knowledge-base creation, retrieval and chat all use this online provider.
