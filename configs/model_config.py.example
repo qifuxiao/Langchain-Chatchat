@@ -6,13 +6,14 @@ MODEL_ROOT_PATH = ""
 GITEE_AI_API_BASE_URL = os.getenv("GITEE_AI_API_BASE_URL", "https://ai.gitee.com/v1")
 GITEE_AI_API_KEY = os.getenv("GITEE_AI_API_KEY", "")
 GITEE_AI_CHAT_MODEL = os.getenv("GITEE_AI_CHAT_MODEL", "Qwen2-7B-Instruct")
-GITEE_AI_EMBEDDING_MODEL = os.getenv("GITEE_AI_EMBEDDING_MODEL", "bce-embedding-base_v1")
+GITEE_AI_EMBEDDING_MODEL = os.getenv("GITEE_AI_EMBEDDING_MODEL", "Qwen3-Embedding-8B")
+GITEE_AI_RERANKER_MODEL = os.getenv("GITEE_AI_RERANKER_MODEL", "Qwen3-Reranker-8B")
 
 # Knowledge-base creation, retrieval and chat all use this online provider.
 EMBEDDING_MODEL = "gitee-ai"
 EMBEDDING_DEVICE = "auto"
-RERANKER_MODEL = ""
-USE_RERANKER = False
+RERANKER_MODEL = "gitee-ai"
+USE_RERANKER = True
 RERANKER_MAX_LENGTH = 1024
 EMBEDDING_KEYWORD_FILE = "keywords.txt"
 EMBEDDING_MODEL_OUTPUT_PATH = "output"
@@ -28,6 +29,7 @@ ONLINE_LLM_MODEL = {
     "gitee-ai": {
         "model_name": GITEE_AI_CHAT_MODEL,
         "embed_model": GITEE_AI_EMBEDDING_MODEL,
+        "reranker_model": GITEE_AI_RERANKER_MODEL,
         "api_base_url": GITEE_AI_API_BASE_URL,
         "api_key": GITEE_AI_API_KEY,
         "provider": "OpenAIWorker",

@@ -8,7 +8,8 @@
 
 ```bash
 cp .env.gitee.example .env
-# 编辑 .env，仅填写 GITEE_AI_API_KEY
+# 编辑 .env，填写 GITEE_AI_API_KEY；默认使用 Qwen2-7B-Instruct、
+# Qwen3-Embedding-8B 和 Qwen3-Reranker-8B。
 docker compose build
 bash scripts/export-offline-bundle.sh
 ```
@@ -23,7 +24,8 @@ Dockerfile 默认使用阿里云的 Debian 与 PyPI 镜像，可在 `.env` 通�
 ```bash
 bash import-offline-bundle.sh langchain-chatchat-gitee-0.2.9.tar.gz /opt/langchain-chatchat
 cd /opt/langchain-chatchat
-# 编辑 .env，仅填写 GITEE_AI_API_KEY
+# 编辑 .env，填写 GITEE_AI_API_KEY；默认使用 Qwen2-7B-Instruct、
+# Qwen3-Embedding-8B 和 Qwen3-Reranker-8B。
 docker compose up -d
 ```
 

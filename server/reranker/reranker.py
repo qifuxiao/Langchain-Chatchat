@@ -2,9 +2,8 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from typing import Any, List, Optional
-from sentence_transformers import CrossEncoder
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
+import httpx
 from langchain_core.documents import Document
 from langchain.callbacks.manager import Callbacks
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
@@ -46,6 +45,9 @@ class LangchainReranker(BaseDocumentCompressor):
         # self.activation_fct=activation_fct
         # self.apply_softmax=apply_softmax
 
+        # Keep this import local: the Gitee-only Docker image deliberately omits
+        # the heavyweight local reranking dependencies.
+        from sentence_transformers import CrossEncoder
         self._model = CrossEncoder(model_name=model_name_or_path, max_length=1024, device=device)
         super().__init__(
             top_n=top_n,
@@ -98,6 +100,75 @@ class LangchainReranker(BaseDocumentCompressor):
             doc.metadata["relevance_score"] = value
             final_results.append(doc)
         return final_results
+
+
+class OpenAIReranker(BaseDocumentCompressor):
+    """Rerank documents through an OpenAI-compatible ``/rerank`` endpoint."""
+
+    model_name: str = Field()
+    api_base_url: str = Field()
+    api_key: str = Field()
+    top_n: int = Field()
+    timeout: float = Field(default=120.0)
+
+    def __init__(
+            self,
+            model_name: str,
+            api_base_url: str,
+            api_key: str,
+            top_n: int = 3,
+            timeout: float = 120.0,
+    ):
+        super().__init__(
+            model_name=model_name,
+            api_base_url=api_base_url.rstrip("/"),
+            api_key=api_key,
+            top_n=top_n,
+            timeout=timeout,
+        )
+
+    def compress_documents(
+            self,
+            documents: Sequence[Document],
+            query: str,
+            callbacks: Optional[Callbacks] = None,
+    ) -> Sequence[Document]:
+        if not documents:
+            return []
+
+        doc_list = list(documents)
+        response = httpx.post(
+            f"{self.api_base_url}/rerank",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.model_name,
+                "query": query,
+                "documents": [document.page_content for document in doc_list],
+                "top_n": min(self.top_n, len(doc_list)),
+            },
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        results = payload.get("results")
+        if not isinstance(results, list):
+            raise RuntimeError(f"Unexpected rerank response: {payload}")
+
+        reranked_documents = []
+        for result in results:
+            index = result.get("index")
+            if not isinstance(index, int) or not 0 <= index < len(doc_list):
+                continue
+            document = doc_list[index]
+            document.metadata["relevance_score"] = result.get("relevance_score")
+            reranked_documents.append(document)
+
+        if not reranked_documents:
+            raise RuntimeError(f"Rerank response contains no valid document indexes: {payload}")
+        return reranked_documents[:self.top_n]
 
 
 if __name__ == "__main__":

@@ -8,7 +8,10 @@ from configs import (LLM_MODELS,
                      USE_RERANKER,
                      RERANKER_MODEL,
                      RERANKER_MAX_LENGTH,
-                     MODEL_PATH)
+                     MODEL_PATH,
+                     GITEE_AI_API_BASE_URL,
+                     GITEE_AI_API_KEY,
+                     GITEE_AI_RERANKER_MODEL)
 from server.utils import wrap_done, get_ChatOpenAI
 from server.utils import BaseResponse, get_prompt_template
 from langchain.chains import LLMChain
@@ -85,23 +88,27 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
         # 加入reranker
         if USE_RERANKER:
-            # Keep the Gitee-only deployment free of local Torch/Transformers
-            # dependencies unless reranking is explicitly enabled.
-            from server.reranker.reranker import LangchainReranker
+            if RERANKER_MODEL == "gitee-ai":
+                from server.reranker.reranker import OpenAIReranker
 
-            reranker_model_path = MODEL_PATH["reranker"].get(RERANKER_MODEL,"BAAI/bge-reranker-large")
-            print("-----------------model path------------------")
-            print(reranker_model_path)
-            reranker_model = LangchainReranker(top_n=top_k,
-                                            device=embedding_device(),
-                                            max_length=RERANKER_MAX_LENGTH,
-                                            model_name_or_path=reranker_model_path
-                                            )
-            print(docs)
+                reranker_model = OpenAIReranker(
+                    model_name=GITEE_AI_RERANKER_MODEL,
+                    api_base_url=GITEE_AI_API_BASE_URL,
+                    api_key=GITEE_AI_API_KEY,
+                    top_n=top_k,
+                )
+            else:
+                from server.reranker.reranker import LangchainReranker
+
+                reranker_model_path = MODEL_PATH["reranker"].get(RERANKER_MODEL, "BAAI/bge-reranker-large")
+                reranker_model = LangchainReranker(
+                    top_n=top_k,
+                    device=embedding_device(),
+                    max_length=RERANKER_MAX_LENGTH,
+                    model_name_or_path=reranker_model_path,
+                )
             docs = reranker_model.compress_documents(documents=docs,
                                                      query=query)
-            print("---------after rerank------------------")
-            print(docs)
         context = "\n".join([doc.page_content for doc in docs])
 
         if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
