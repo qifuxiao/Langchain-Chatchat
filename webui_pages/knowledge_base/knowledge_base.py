@@ -5,7 +5,7 @@ from st_aggrid.grid_options_builder import GridOptionsBuilder
 import pandas as pd
 from server.knowledge_base.utils import get_file_path, LOADER_DICT
 from server.knowledge_base.kb_service.base import get_kb_details, get_kb_file_details
-from typing import Literal, Dict, Tuple
+from typing import Any, Dict, List, Literal, Tuple
 from configs import (kbs_config,
                     EMBEDDING_MODEL, DEFAULT_VS_TYPE,
                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
@@ -53,6 +53,23 @@ def file_exists(kb: str, selected_rows: List) -> Tuple[str, str]:
         if os.path.isfile(file_path):
             return file_name, file_path
     return "", ""
+
+
+def normalize_selected_rows(selected_rows: Any) -> List[Dict]:
+    """Normalize streamlit-aggrid selections across supported versions.
+
+    Recent streamlit-aggrid versions may return a pandas DataFrame, while older
+    versions return a list of row dictionaries.  The page expects the latter.
+    """
+    if selected_rows is None:
+        return []
+    if isinstance(selected_rows, pd.DataFrame):
+        return selected_rows.to_dict("records")
+    if isinstance(selected_rows, dict):
+        return [selected_rows]
+    if isinstance(selected_rows, list):
+        return [row for row in selected_rows if isinstance(row, dict)]
+    return []
 
 
 def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
@@ -231,7 +248,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 enable_enterprise_modules=False
             )
 
-            selected_rows = doc_grid.get("selected_rows", [])
+            selected_rows = normalize_selected_rows(doc_grid.get("selected_rows"))
 
             cols = st.columns(4)
             file_name, file_path = file_exists(kb, selected_rows)

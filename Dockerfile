@@ -30,6 +30,14 @@ RUN pip install --upgrade pip \
         --index-url "${PIP_INDEX_URL}" \
         --trusted-host "${PIP_TRUSTED_HOST}"
 
+# Keep this in a separate layer so an application-code update can reuse the
+# expensive Python dependency layer. These resources are therefore present in
+# every offline image and Word document parsing never downloads at runtime.
+ENV NLTK_DATA=/app/nltk_data
+RUN python -m nltk.downloader -d /app/nltk_data punkt punkt_tab \
+    && test -d /app/nltk_data/tokenizers/punkt \
+    && test -d /app/nltk_data/tokenizers/punkt_tab
+
 COPY . ./
 RUN chmod +x /app/docker-entrypoint.sh \
     && mkdir -p /app/knowledge_base /app/logs
