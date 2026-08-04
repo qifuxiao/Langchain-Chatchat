@@ -13,12 +13,9 @@ import uuid
 from typing import List, Dict
 
 
-chat_box = ChatBox(
-    assistant_avatar=os.path.join(
-        "img",
-        "chatchat_icon_blue_square_v2.png"
-    )
-)
+# Use Streamlit's native emoji avatar so the chat page has no runtime
+# dependency on a filesystem image that may be omitted from a slim image.
+chat_box = ChatBox(assistant_avatar="🤖")
 
 
 def get_messages_history(history_len: int, content_in_expander: bool = False) -> List[Dict]:
@@ -158,11 +155,16 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
         def llm_model_format_func(x):
+            config = running_model_configs.get(x, {})
+            if not config:
+                config = config_models.get("online", {}).get(x, {})
+            display_name = config.get("model_name") if config.get("online_api") else x
             if x in running_models:
-                return f"{x} (Running)"
-            return x
+                return f"{display_name} (Running)"
+            return display_name
 
-        running_models = list(api.list_running_models())
+        running_model_configs = api.list_running_models()
+        running_models = list(running_model_configs)
         available_models = []
         config_models = api.list_config_models()
         if not is_lite:
