@@ -1,0 +1,18 @@
+# Use this file on the disconnected target server after loading image.tar.
+# It deliberately has no `build` section, so Docker never attempts a network build.
+services:
+  langchain-chatchat:
+    image: langchain-chatchat-gitee:0.2.9
+    environment:
+      GITEE_AI_API_BASE_URL: ${GITEE_AI_API_BASE_URL:-https://ai.gitee.com/v1}
+      GITEE_AI_API_KEY: ${GITEE_AI_API_KEY:?Set GITEE_AI_API_KEY in .env}
+      GITEE_AI_CHAT_MODEL: ${GITEE_AI_CHAT_MODEL:-Qwen2.5-72B-Instruct}
+      GITEE_AI_EMBEDDING_MODEL: ${GITEE_AI_EMBEDDING_MODEL:-bce-embedding-base_v1}
+    ports:
+      - "8501:8501"
+      - "7861:7861"
+      - "20000:20000"
+    volumes:
+      - ./data/knowledge_base:/app/knowledge_base
+      - ./data/logs:/app/logs
+    restart: unless-stopped

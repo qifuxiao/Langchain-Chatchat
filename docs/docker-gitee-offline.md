@@ -10,16 +10,20 @@
 cp .env.gitee.example .env
 # 编辑 .env，仅填写 GITEE_AI_API_KEY
 docker compose build
-docker save -o langchain-chatchat-gitee-0.2.9.tar langchain-chatchat-gitee:0.2.9
+bash scripts/export-offline-bundle.sh
 ```
 
 Dockerfile 默认使用阿里云的 Debian 与 PyPI 镜像，可在 `.env` 通过
 `APT_MIRROR_HOST`、`PIP_INDEX_URL`、`PIP_TRUSTED_HOST` 改为公司内部源。它们只影响构建期依赖下载。
 
-把 `langchain-chatchat-gitee-0.2.9.tar`、`docker-compose.yml` 与目标服务器的 `.env` 传到离线服务器。目标服务器执行：
+构建成功后，Docker 会生成 `langchain-chatchat-gitee:0.2.9` 镜像。导出脚本会把它、无 `build` 段的 Compose 文件、示例环境变量和 SHA-256 校验和打成 `dist/langchain-chatchat-gitee-0.2.9.tar.gz`。
+
+把该压缩包传到离线服务器。目标服务器执行：
 
 ```bash
-docker load -i langchain-chatchat-gitee-0.2.9.tar
+bash import-offline-bundle.sh langchain-chatchat-gitee-0.2.9.tar.gz /opt/langchain-chatchat
+cd /opt/langchain-chatchat
+# 编辑 .env，仅填写 GITEE_AI_API_KEY
 docker compose up -d
 ```
 
@@ -27,4 +31,4 @@ docker compose up -d
 
 访问地址：WebUI `http://SERVER:8501`，业务 API `http://SERVER:7861/docs`，兼容 OpenAI 的本地代理 `http://SERVER:20000/v1`。
 
-如需完全断网运行，必须改用本地 LLM 与本地 Embedding 模型；Gitee API 无法在无外网连接的环境中完成推理。
+如需完全断网运行，必须改用本地 LLM 与本地 Embedding 模型；Gitee API 无法在无外网连接的环境中完成推理。当前交付仅实现镜像和依赖的离线搬运，不能让 Gitee API 在隔绝外网环境中推理。
