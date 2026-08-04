@@ -34,9 +34,11 @@ RUN pip install --upgrade pip \
 # expensive Python dependency layer. These resources are therefore present in
 # every offline image and Word document parsing never downloads at runtime.
 ENV NLTK_DATA=/app/nltk_data
-RUN python -m nltk.downloader -d /app/nltk_data punkt punkt_tab \
+RUN python -m nltk.downloader -d /app/nltk_data \
+        punkt punkt_tab averaged_perceptron_tagger_eng \
     && test -d /app/nltk_data/tokenizers/punkt \
-    && test -d /app/nltk_data/tokenizers/punkt_tab
+    && test -d /app/nltk_data/tokenizers/punkt_tab \
+    && test -d /app/nltk_data/taggers/averaged_perceptron_tagger_eng
 
 COPY . ./
 RUN chmod +x /app/docker-entrypoint.sh \

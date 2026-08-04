@@ -29,7 +29,7 @@ cd /opt/langchain-chatchat
 docker compose up -d
 ```
 
-首次启动会从模板生成 `configs/*.py`，并读取 `GITEE_AI_*` 环境变量。镜像已经内置 Word 文档解析所需的 NLTK `punkt` 和 `punkt_tab` 数据，离线运行时不需要再下载。知识库、FAISS 索引和 SQLite 元数据保存到 `./data/knowledge_base`，日志保存到 `./data/logs`；升级镜像不会覆盖这些数据。
+首次启动会从模板生成 `configs/*.py`，并读取 `GITEE_AI_*` 环境变量。镜像已经内置 Word 文档解析所需的 NLTK `punkt`、`punkt_tab` 和 `averaged_perceptron_tagger_eng` 数据，离线运行时不需要再下载。知识库、FAISS 索引和 SQLite 元数据保存到 `./data/knowledge_base`，日志保存到 `./data/logs`；升级镜像不会覆盖这些数据。
 
 访问地址：WebUI `http://SERVER:8501`，业务 API `http://SERVER:7861/docs`，兼容 OpenAI 的本地代理 `http://SERVER:20000/v1`。
 
