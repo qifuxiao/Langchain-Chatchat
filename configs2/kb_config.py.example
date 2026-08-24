@@ -13,19 +13,18 @@ CACHED_VS_NUM = 1
 CACHED_MEMO_VS_NUM = 10
 
 # 知识库中单段文本长度(不适用MarkdownHeaderTextSplitter)
-CHUNK_SIZE = 500
+CHUNK_SIZE = 250
 
 # 知识库中相邻文本重合长度(不适用MarkdownHeaderTextSplitter)
-OVERLAP_SIZE = 100
+OVERLAP_SIZE = 50
 
 # 知识库匹配向量数量
-VECTOR_SEARCH_TOP_K = 6
+VECTOR_SEARCH_TOP_K = 3
 
 # 知识库匹配的距离阈值，取值范围在0-1之间，SCORE越小，距离越小从而相关度越高，
 # 取到1相当于不筛选，实测bge-large的距离得分大部分在0.01-0.7之间，
 # 相似文本的得分最高在0.55左右，因此建议针对bge设置得分为0.6
-# 对于在线embedding模型，建议降低阈值以获得更多相关片段
-SCORE_THRESHOLD = 0.8
+SCORE_THRESHOLD = 0.6
 
 # 默认搜索引擎。可选：bing, duckduckgo, metaphor
 DEFAULT_SEARCH_ENGINE = "duckduckgo"
