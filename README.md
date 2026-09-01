@@ -83,27 +83,50 @@ docker run -d --gpus all -p 80:8501 registry.cn-beijing.aliyuncs.com/chatchat/ch
 | `docs/DOCKER_OFFLINE_DEPLOY.md` | 离线部署详细文档 |
 
 ### 方式一：离线部署（断网服务器，推荐）
+适用于**运行机没有外网**的场景，**从 GitHub 拉取代码开始**（两台服务器初始都没有代码）：联网服务器构建并导出镜像，断网服务器导入运行。
+> 完整说明（configs 配置、知识库/向量库、故障排查）见：[docs/DOCKER_OFFLINE_DEPLOY.md](docs/DOCKER_OFFLINE_DEPLOY.md)。
 
-**① 联网服务器：构建 + 导出**
+**① 联网服务器：拉取代码**
 ```bash
+git clone -b feature/aigitee https://github.com/qifuxiao/Langchain-Chatchat.git
 cd Langchain-Chatchat
+```
+
+**② 联网服务器：配置 Gitee AI（填 api_key）**
+`configs/*.py` 被 `.gitignore` 忽略，clone 下来只有 `*.py.example`（`api_key` 为空）：
+```bash
+python copy_config_example.py     # 由 configs/*.py.example 生成 configs/*.py
+# 编辑 configs/model_config.py：ONLINE_LLM_MODEL["openai"].api_key 填你的 Gitee AI 密钥
+```
+模型名默认 `glm-4-9b-chat` / `Qwen3-Embedding-8B`，按你 Gitee AI 可用模型调整。
+
+**③ 联网服务器：（推荐）预生成知识库向量库**
+镜像需内置向量库供断网机复用；仓库不含 `vector_store`，需联网生成一次：
+```bash
+python init_database.py --recreate-vs    # 需可访问 Gitee AI Embedding；处理 knowledge_base 下所有 KB
+```
+> 跳过此步时，断网机首次请用 `RUN_INIT_DB=1 ./docker/run_offline.sh` 现场生成。
+
+**④ 联网服务器：构建 + 导出**
+```bash
 ./docker/build_online.sh                 # 构建 langchain-chatchat:offline
 GZIP=1 ./docker/export_image.sh          # 导出 dist/langchain-chatchat-offline.tar.gz
 ls -lh dist/                             # 确认 GB 级、非 0 字节
 ```
 > 国内官方 torch 源慢/超时：`TORCH_CPU_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cpu/ ./docker/build_online.sh`
 
-**② 拷贝**：用 U 盘/离线介质将 `dist/langchain-chatchat-offline.tar.gz` 与仓库（至少 `docker/` 脚本）拷到断网服务器。
+**⑤ 拷贝**：用 U 盘/离线介质将 `dist/langchain-chatchat-offline.tar.gz` 与仓库（至少 `docker/` 脚本）拷到断网服务器。
 
-**③ 断网服务器：导入 + 运行**
+**⑥ 断网服务器：导入 + 运行**
 ```bash
 cd Langchain-Chatchat
 ./docker/import_image.sh dist/langchain-chatchat-offline.tar.gz   # docker load
 ./docker/run_offline.sh                                           # docker run（RUN_INIT_DB=0）
 docker logs -f chatchat
 ```
+> 断网服务器**没有代码也行**：运行所需代码/配置/知识库都已在镜像里；若没 clone 仓库，手动 `docker load` + `docker run` 亦可（参数见 docs）。
 
-**④ 验证**
+**⑦ 验证**
 ```bash
 docker ps                                            # STATUS 应为 (healthy)
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:7861/    # 期望 200

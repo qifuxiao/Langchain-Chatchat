@@ -1,111 +1,136 @@
-# Langchain-Chatchat 离线 Docker 部署指南（feature/aigitee）
+# Langchain-Chatchat Docker 离线部署（从 GitHub 拉取代码开始）
 
-本方案将项目改为 **Docker 部署**：在**可联网**的服务器上构建并导出镜像，拷贝到**完全断网**的服务器上加载并运行。全程不修改任何业务代码，仅新增部署相关文件。
+本文覆盖**两台机器初始都没有代码**的完整流程：
+- **联网构建机**：能访问 GitHub / PyPI / DockerHub / Gitee AI 在线 API。
+- **离线运行机**：不能访问 PyPI / DockerHub / GitHub，但**必须能访问 Gitee AI 在线 API**（`https://ai.gitee.com/v1`）。
 
-## 一、部署架构
+## 0. 先搞清楚“离线”的含义（重要）
+本部署是“**软件包离线**”，不是“**业务断网**”：
+- 依赖（pip）与镜像（docker）在联网机构建/导出，离线机不在线安装 —— 这是“离线”指的部分。
+- 但对话（LLM）与向量化（Embedding）**运行时仍调用 Gitee AI 在线 API**。因此离线运行机必须能访问 `https://ai.gitee.com/v1`，否则无法回答、无法检索。
+- 若离线机连 Gitee AI 都不通，则本“纯在线 Gitee AI”方案不适用（需改为本地模型方案）。
 
-```
-┌──────────────────────────── 可联网服务器 ────────────────────────────┐
-│  1) docker build          安装全部依赖 + 打入源码/配置/知识库          │
-│  2) docker save           导出为 dist/*.tar(.gz) 离线镜像包            │
-└──────────────────────────────────────────────────────────────────────┘
-                          │  拷贝镜像包（U盘/离线介质）
-                          ▼
-┌──────────────────────────── 完全断网服务器 ──────────────────────────┐
-│  3) docker load           从 tar 包加载镜像（无需联网）                │
-│  4) docker run            启动容器，entrypoint 按正确顺序拉服务        │
-└──────────────────────────────────────────────────────────────────────┘
-```
+## 1. 哪些东西“不在仓库里”（clone 后需要手工准备）
+`git clone` 下来是干净代码。以下两类被 `.gitignore` 忽略，**不随仓库分发**，需自行准备：
+1. `configs/*.py`：Gitee AI 在线模型配置（含 **api_key**）。仓库只有 `configs/*.py.example`（其 `api_key` 为空）。
+2. 知识库向量库 `knowledge_base/*/vector_store/`：由文档 + Gitee AI Embedding 生成。仓库只有原始文档（如 `knowledge_base/samples/content/`），**没有** `vector_store`。
 
-镜像在构建期先安装 **CPU 版 torch/torchvision**（`torch==2.1.2`，走 PyTorch CPU 源），再安装精简依赖 `requirements_openai.docker.txt`（其余走阿里云镜像源），运行期**不再需要联网安装任何依赖**。相比完整 `requirements_openai.txt`，精简版剔除了 `nvidia-*` CUDA 栈、`vllm`、`xformers`、`triton`、`torchaudio`、`ray`，镜像体积从十余 GB 降到约 1~3 GB。
+> 好消息：本仓库的 `configs/*.py.example` 默认就是 Gitee AI 在线模式（`LLM_MODELS=["openai"]`、`api_base_url=https://ai.gitee.com/v1`），你只需填 `api_key`。
 
-## 二、端口说明（见 `configs/server_config.py`）
-
-| 服务 | 容器端口 | 说明 |
-| --- | --- | --- |
-| WebUI | 8501 | Streamlit 前端，浏览器访问 |
-| API | 7861 | Chatchat REST API |
-| fschat-openai-api | 20000 | FastChat OpenAI 兼容接口 |
-| controller | 20001 | FastChat 控制器 |
-| model-worker(openai) | 21010 | 在线模型 worker（当前 `LLM_MODELS=["openai"]`）|
-| model-worker(openai-api) | 21009 | 备用在线模型 worker |
-
-> 外部访问一般只需 **8501（WebUI）** 与 **7861（API）**；其余为内部端口，脚本一并映射以便排障，可按需裁剪。
-
-## 三、前置条件
-
-- 可联网服务器：已安装 Docker（可拉取基础镜像 `python:3.11-slim`、可访问阿里云 PyPI 与 PyTorch CPU 源 `download.pytorch.org/whl/cpu`；国内慢时可用清华镜像，见“注意事项 2”）。
-- 断网服务器：已安装 Docker（**无需**联网、**无需** PyPI）。
-- 当前分支为**纯在线模型**配置（LLM/Embedding 均调用 Gitee AI `https://ai.gitee.com/v1`），镜像不含本地模型权重。
-
-## 四、详细步骤
-
-### 阶段 A：可联网服务器
-
+## 2. 联网构建机（从 clone 到导出）
+### 2.1 拉取代码
 ```bash
-# A1. 在“测试通过的工程目录”（即含 configs/*.py 与 knowledge_base/ 的目录）下构建镜像
-./docker/build_online.sh
-
-# A2. 导出离线镜像包（推荐开启 gzip 压缩，产物在 dist/）
-GZIP=1 ./docker/export_image.sh
+git clone -b feature/aigitee https://github.com/qifuxiao/Langchain-Chatchat.git
+cd Langchain-Chatchat
 ```
 
-产物：`dist/langchain-chatchat-offline.tar.gz`（或 `.tar`）。
-
-### 阶段 B：拷贝到断网服务器
-
-用 U 盘 / 离线介质将 `dist/langchain-chatchat-offline.tar.gz` 与本仓库（含 `docker/` 脚本）一并拷贝到断网服务器。
-
-### 阶段 C：完全断网服务器
-
+### 2.2 生成并配置 Gitee AI（填 api_key）
 ```bash
-# C1. 加载镜像
-./docker/import_image.sh dist/langchain-chatchat-offline.tar.gz
-# 或（若放在默认位置 dist/ 且未压缩）
-./docker/import_image.sh
-
-# C2. 启动服务（默认 RUN_INIT_DB=0，复用镜像内置知识库，完全断网可运行）
-./docker/run_offline.sh
+python copy_config_example.py        # 由 configs/*.py.example 生成 configs/*.py
 ```
+编辑 `configs/model_config.py`，在 `ONLINE_LLM_MODEL["openai"]` 填入你的 Gitee AI 密钥与模型名：
+```python
+LLM_MODELS = ["openai"]               # 默认在线对话模型
+ONLINE_LLM_MODEL = {
+    "openai": {
+        "model_name":   "glm-4-9b-chat",           # 你的 Gitee AI 对话模型名
+        "api_base_url": "https://ai.gitee.com/v1",
+        "api_key":      "填你的_Gitee_AI_api_key",  # ← 必填
+        "embed_model":  "Qwen3-Embedding-8B",      # 你的 Embedding 模型名
+        "provider":     "OpenAIWorker",
+    },
+}
+```
+- 模型名 / Embedding 名以你在 Gitee AI 控制台实际可用为准。
+- `api_key` 只填在 `.py`（被 `.gitignore` 忽略，不会提交）；`.example` 保持空。
 
-访问：`http://<服务器IP>:8501`（WebUI）、`http://<服务器IP>:7861`（API）。
-查看日志：`docker logs -f chatchat`。
+### 2.3 准备知识库
+- 开箱演示：`knowledge_base/samples/content/` 已有样例文档（`用户使用协议.docx`、`llm/*.md`、`test_files/*`），直接用。
+- 自有知识库：把文档放进 `knowledge_base/<你的KB名>/content/`。
 
-## 五、环境变量（`docker/run_offline.sh` / 容器内）
+### 2.4（推荐）联网预生成向量库
+让离线机首次即用 `RUN_INIT_DB=0`，在联网机先本地生成 `vector_store`（`docker build` 用 `COPY . .` 会把它打进镜像）：
+```bash
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt        # 或按需安装；需能访问 Gitee AI Embedding
+python init_database.py --recreate-vs  # 处理 knowledge_base 下所有 KB（含 samples）
+```
+生成后 `knowledge_base/<KB>/vector_store/openai-api/` 出现 `index.faiss` / `index.pkl`。
+> 不想预生成？可跳过本步，让离线机首次用 `RUN_INIT_DB=1` 现场生成（需离线机可访问 Gitee AI Embedding）。
+### 2.5 构建镜像
+```bash
+docker build -t langchain-chatchat:offline .
+```
+CPU-only torch + 精简依赖，成品约 3 GB。
 
+### 2.6 导出镜像
+```bash
+./docker/export_image.sh
+# → dist/langchain-chatchat-offline.tar.gz（gzip，约 935 MB）
+```
+> 若导出为 0 字节：脚本已用 `env -u GZIP gzip -c` 规避 `GZIP` 环境变量冲突；亦可手动
+> `docker save langchain-chatchat:offline | env -u GZIP gzip -c > dist/x.tar.gz`。
+
+## 3. 传输
+把 `dist/langchain-chatchat-offline.tar.gz` 拷贝到离线运行机（scp / U 盘 / 内网）。
+
+## 4. 离线运行机（导入到运行）
+### 4.1 导入镜像
+```bash
+gunzip -c langchain-chatchat-offline.tar.gz | docker load
+# 或：docker load -i langchain-chatchat-offline.tar.gz
+# 或（若此机也 clone 了仓库）：./docker/import_image.sh
+```
+> 说明：离线机**没有代码也没关系** —— 运行所需代码、配置、知识库都已在镜像里；脚本只是方便，手动 `docker load` / `docker run` 即可。
+
+### 4.2 运行
+```bash
+docker run -d --name chatchat --restart unless-stopped \
+  -p 8501:8501 -p 7861:7861 -p 20000:20000 -p 20001:20001 \
+  -p 21010:21010 -p 21009:21009 \
+  -v "$PWD/data/logs:/app/logs" \
+  -e RUN_INIT_DB=0 \
+  langchain-chatchat:offline
+```
+- `RUN_INIT_DB=0`：复用镜像内置向量库（做法 2.4 已预生成）。
+- 若未预生成向量库，首次改 `RUN_INIT_DB=1`（现场用 Gitee AI Embedding 生成）。
+- 若此机 clone 了仓库，可用 `./docker/run_offline.sh`（默认即上述参数 + `RUN_INIT_DB=0`）。
+
+### 4.3 验证
+```bash
+docker logs --tail 50 chatchat
+# 看到 [OK] startup ready ... 且输出 webui/api 地址 → 成功
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:7861/api/gitee/models
+# 返回 200 → API 可用
+```
+浏览器打开 `http://<离线机IP>:8501` 即可使用。
+## 5. 关键环境变量
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
-| `RUN_INIT_DB` | `0` | 是否执行 `init_database.py --recreate-vs`。`0`=复用镜像内置知识库（断网可用）；`1`=重建向量库（**需能访问 Embedding API**）|
-| `STARTUP_ARGS` | `-a` | 传给 `startup.py` 的参数。`-a`=启动全部服务；可改为 `--all-api`（不带 WebUI）等 |
-| `MOUNT_KB` | `0` | `1`=挂载 `$DATA_DIR/knowledge_base` 作为知识库（需自行准备数据）|
-| `MODEL_NAME` | 空 | 追加给 `startup.py` 的模型名（`-n`）|
-| `CONTAINER_NAME` | `chatchat` | 容器名 |
-| `WEBUI_PORT`/`API_PORT`/... | 见端口表 | 宿主机端口映射 |
-| `DATA_DIR` | `dist/data` | 日志等持久化数据目录 |
-| `IMAGE` | `langchain-chatchat:offline` | 镜像名 |
+| `RUN_INIT_DB` | `0` | `1` = 启动时用 Gitee AI Embedding 重建向量库（需可访问 `ai.gitee.com`） |
+| `DATA_DIR` | 工程内 `dist/data` | 日志持久化目录，挂载到 `/app/logs` |
+| `WEBUI_PORT` / `API_PORT` 等 | `8501` / `7861` / … | 端口，见 `Dockerfile` 与 `server_config.py` |
 
-## 六、与手工步骤的对应关系（顺序已修正）
+## 6. 端口
+| 端口 | 服务 |
+| --- | --- |
+| 8501 | WebUI |
+| 7861 | 后端 API（`/api/gitee/*`） |
+| 20000 | fastchat openai_api |
+| 20001 | fastchat controller |
+| 21010 / 21009 | 在线模型 worker（`openai` / `openai-api`） |
 
-你原始的手工步骤里 `startup.py -a` 排在 `copy_config_example.py`、`init_database.py` **之前**，在干净环境会失败（`startup.py`/`init_database.py` 都 `import configs`，而 `configs/*.py` 需由 `copy_config_example.py` 生成）。容器内按如下**正确顺序**执行：
+## 7. 常见问题
+- **api_key 为空 / 鉴权失败**：检查 `configs/model_config.py` 的 `ONLINE_LLM_MODEL["openai"].api_key` 是否已填 Gitee AI 密钥（只填 `.py`，勿提交）。
+- **启动报“知识库为空 / 无向量”**：镜像未内置 `vector_store`。首次用 `RUN_INIT_DB=1`，或联网机先 `python init_database.py --recreate-vs` 预生成再 `docker build`。
+- **完全离线（连 Gitee AI 都不通）**：本方案不可行（LLM / Embedding 需在线）。
+- **tokenizer / nltk 首次下载失败**：预生成向量库那步需联网下载 tokenizer；在联网机完成即可，离线机复用镜像内结果。
+- **导出 0 字节**：见 2.6，用 `env -u GZIP`。
 
-| # | 手工步骤 | Docker 中的位置 |
-| --- | --- | --- |
-| 1 | `python -m venv .venv` / `source` / `pip install -r requirements_openai.txt` | 镜像构建期完成（`Dockerfile`），运行期无需 |
-| 2 | `python copy_config_example.py` | entrypoint [1/3]，**仅当 `configs/*.py` 缺失时**执行（保留内置测试配置）|
-| 3 | `python init_database.py --recreate-vs` | entrypoint [2/3]，由 `RUN_INIT_DB` 控制 |
-| 4 | `python startup.py -a` | entrypoint [3/3]，前台运行（PID 1）|
-
-## 七、注意事项与常见问题
-
-1. **断网与在线 API 的关系**：本分支 LLM/Embedding 都调用 Gitee AI 接口。
-   - 若断网服务器**也无法访问** `https://ai.gitee.com/v1`：请将知识库（含向量库）预先准备好并打入镜像或挂载，且设 `RUN_INIT_DB=0`；对话功能仍需该接口可达，否则无法应答。
-   - 若“断网”仅指**不能连 PyPI/DockerHub**、但能访问 Gitee AI：可设 `RUN_INIT_DB=1` 以完全复现手工的 `init_database.py --recreate-vs` 步骤。
-2. **镜像体积与精简依赖（已做）**：
-   - 本部署为**纯在线 API**（LLM/Embedding 均走 Gitee AI），无本地 GPU 推理。但启动链 `server.api -> knowledge_base_chat -> reranker -> sentence_transformers` 会在 import 阶段 `import torch`，因此 **torch 必须保留**；用 **CPU 版**即可满足 import，从而彻底去掉 `nvidia-*` CUDA 大包（约 5~8GB，也是之前构建下载超时的元凶）。
-   - `Dockerfile` 用 `requirements_openai.docker.txt`（由 `requirements_openai.txt` 派生，原文件未改动）替代完整清单，剔除 `nvidia-*`、`vllm`、`xformers`、`triton`、`torchaudio`、`ray`；镜像从十余 GB 降到约 1~3 GB，构建更快、且不再下载超大 CUDA wheel 而超时。
-    - 编译工具链 `build-essential` 仅在安装依赖时临时使用，装完即在**同一镜像层内** `--purge` 移除，不计入最终体积（进一步压缩镜像）。
-   - **前提**：目标机**不用本地 GPU 模型**（纯在线 API）。若将来要在容器内跑本地模型/GPU 推理，请改回完整 `requirements_openai.txt` + CUDA 版 torch。
-   - **torch CPU 源**：默认 `https://download.pytorch.org/whl/cpu`；国内慢/不可达时：`TORCH_CPU_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cpu/ ./docker/build_online.sh`。
-3. **配置保留**：镜像内置了测试通过的 `configs/*.py`。entrypoint 仅在缺失时才用 `.example` 生成，避免覆盖。请勿在断网端误执行无条件的 `copy_config_example.py`（会还原为默认配置）。
-4. **数据持久化**：日志挂载于 `$DATA_DIR/logs`。若需持久化知识库，设 `MOUNT_KB=1` 并准备 `$DATA_DIR/knowledge_base`。
-5. **重建/升级**：联网端改代码后重新 `build_online.sh` + `export_image.sh`，断网端重新 `import_image.sh` + `run_offline.sh` 即可（脚本幂等，会替换同名容器）。
+## 8. 关闭与清理
+```bash
+docker stop chatchat; docker rm chatchat                 # 停 + 删容器
+docker rmi langchain-chatchat:offline                    # 删镜像
+rm -rf data/ dist/langchain-chatchat-offline.tar.gz     # 删本地数据与离线包
+```
+> 只想“暂停”下次再用：`docker stop chatchat` 即可，不要 `rm` / `rmi`，保留镜像与数据，之后 `docker start chatchat` 或再跑 `./docker/run_offline.sh`。
