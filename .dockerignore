@@ -1,0 +1,35 @@
+# =============================================================================
+# .dockerignore —— 缩小构建上下文，避免把无关/巨大文件打进镜像
+# 注意：.venv（约 7G）必须在内，否则镜像体积会失控
+# =============================================================================
+
+# 版本控制
+.git
+.gitignore
+.gitmodules
+
+# Python 虚拟环境（镜像内自带独立环境，绝不打入宿主的 .venv）
+.venv
+venv
+env
+ENV
+
+# 运行时产物 / 缓存
+logs
+*.log
+*.log.*
+__pycache__/
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.tox
+.cache
+*.egg-info
+build/
+dist/
+
+# IDE / 编辑器 / 系统文件
+.vscode/
+.idea/
+*.swp
+.DS_Store
