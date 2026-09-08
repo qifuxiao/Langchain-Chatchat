@@ -66,131 +66,21 @@ docker run -d --gpus all -p 80:8501 registry.cn-beijing.aliyuncs.com/chatchat/ch
 
 ## Docker 部署
 
-本分支（`feature/aigitee`）提供 **Docker 部署**：在**可联网**服务器构建镜像并导出，拷贝到**完全断网**服务器加载运行。镜像基于 `python:3.11-slim`，内置 **CPU 版 torch + 精简依赖 + 源码 + 配置 + 知识库**，纯在线调用 Gitee AI（`https://ai.gitee.com/v1`），**不含本地 GPU 模型**，体积约 **3 GB**（已从十余 GB 精简）。未改动任何业务代码，仅新增下列文件。
-
-### 部署文件清单
-
-| 文件 | 作用 |
-| --- | --- |
-| `Dockerfile` | 构建镜像（CPU torch + 精简依赖，编译工具随装随删）|
-| `.dockerignore` | 排除 `.venv`/`.git`/`dist` 等，减小构建上下文 |
-| `requirements_openai.docker.txt` | 精简依赖（剔除 `nvidia-*`/`vllm`/`xformers`/`triton`/`torchaudio`/`ray`）|
-| `docker/build_online.sh` | 联网机：构建镜像（可覆盖 torch CPU 源）|
-| `docker/export_image.sh` | 联网机：导出为 `dist/*.tar(.gz)` |
-| `docker/import_image.sh` | 断网机：`docker load` 加载镜像 |
-| `docker/run_offline.sh` | 断网机：`docker run` 启动容器（默认 `RUN_INIT_DB=0`）|
-| `docker/entrypoint.sh` | 容器入口（按正确顺序拉服务）|
-| `docs/DOCKER_OFFLINE_DEPLOY.md` | 离线部署详细文档 |
-
-### 方式一：离线部署（断网服务器，推荐）
-适用于**运行机没有外网**的场景，**从 GitHub 拉取代码开始**（两台服务器初始都没有代码）：联网服务器构建并导出镜像，断网服务器导入运行。
-> 完整说明（configs 配置、知识库/向量库、故障排查）见：[docs/DOCKER_OFFLINE_DEPLOY.md](docs/DOCKER_OFFLINE_DEPLOY.md)。
-
-**① 联网服务器：拉取代码**
-```bash
-git clone -b feature/aigitee https://github.com/qifuxiao/Langchain-Chatchat.git
-cd Langchain-Chatchat
-```
-
-**② 联网服务器：配置 Gitee AI（填 api_key）**
-`configs/*.py` 被 `.gitignore` 忽略，clone 下来只有 `*.py.example`（`api_key` 为空）：
-```bash
-python copy_config_example.py     # 由 configs/*.py.example 生成 configs/*.py
-# 编辑 configs/model_config.py：ONLINE_LLM_MODEL["openai"].api_key 填你的 Gitee AI 密钥
-```
-模型名默认 `glm-4-9b-chat` / `Qwen3-Embedding-8B`，按你 Gitee AI 可用模型调整。
-
-**③ 联网服务器：（推荐）预生成知识库向量库**
-镜像需内置向量库供断网机复用；仓库不含 `vector_store`，需联网生成一次：
-```bash
-python init_database.py --recreate-vs    # 需可访问 Gitee AI Embedding；处理 knowledge_base 下所有 KB
-```
-> 跳过此步时，断网机首次请用 `RUN_INIT_DB=1 ./docker/run_offline.sh` 现场生成。
-
-**④ 联网服务器：构建 + 导出**
-```bash
-./docker/build_online.sh                 # 构建 langchain-chatchat:offline
-GZIP=1 ./docker/export_image.sh          # 导出 dist/langchain-chatchat-offline.tar.gz
-ls -lh dist/                             # 确认 GB 级、非 0 字节
-```
-> 国内官方 torch 源慢/超时：`TORCH_CPU_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cpu/ ./docker/build_online.sh`
-
-**⑤ 拷贝**：用 U 盘/离线介质将 `dist/langchain-chatchat-offline.tar.gz` 与仓库（至少 `docker/` 脚本）拷到断网服务器。
-
-**⑥ 断网服务器：导入 + 运行**
-```bash
-cd Langchain-Chatchat
-./docker/import_image.sh dist/langchain-chatchat-offline.tar.gz   # docker load
-./docker/run_offline.sh                                           # docker run（RUN_INIT_DB=0）
-docker logs -f chatchat
-```
-> 断网服务器**没有代码也行**：运行所需代码/配置/知识库都已在镜像里；若没 clone 仓库，手动 `docker load` + `docker run` 亦可（参数见 docs）。
-
-**⑦ 验证**
-```bash
-docker ps                                            # STATUS 应为 (healthy)
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:7861/    # 期望 200
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8501/    # 期望 200
-```
-浏览器访问 `http://<断网机IP>:8501`（WebUI）、`http://<断网机IP>:7861`（API）。
-
-### 方式二：在线构建并直接运行（服务器有网络）
+本分支支持通过 OpenAI 兼容接口调用 LLM 和 Embedding，使用 CPU 镜像，无需 CUDA。
+“离线部署”指运行机不联网安装依赖；模型 API 仍需通过公网或内网可达。
+rerank 按配置保持关闭，当前代码尚未实现远程 rerank 适配。
 
 ```bash
-cd Langchain-Chatchat
-./docker/build_online.sh                  # 或 docker build -t langchain-chatchat:offline .
-./docker/run_offline.sh                    # 默认 RUN_INIT_DB=0；在线重建向量库用：RUN_INIT_DB=1 ./docker/run_offline.sh
-docker logs -f chatchat
+bash docker/build_online.sh
+GZIP=1 bash docker/export_image.sh
 ```
 
-### 方式三：手动 Docker 命令（不依赖脚本）
+配置模板从环境变量读取地址、模型名和密钥，镜像不包含本机 `.env` 或 `configs/*.py`。
+默认启动只创建缺失的数据库表，不重建向量；运行脚本使用持久化知识库卷。
+详细的配置、预生成向量、传输和运行步骤见 [Docker 离线部署指南](docs/DOCKER_OFFLINE_DEPLOY.md)。
 
-```bash
-# 构建
-docker build -t langchain-chatchat:offline .
-# 导出 / 导入（离线）
-docker save langchain-chatchat:offline | env -u GZIP gzip -c > chatchat-offline.tar.gz
-docker load -i chatchat-offline.tar.gz
-# 运行
-docker run -d --name chatchat --restart unless-stopped \
-  -p 8501:8501 -p 7861:7861 -p 20000:20000 -p 20001:20001 -p 21010:21010 -p 21009:21009 \
-  -e RUN_INIT_DB=0 langchain-chatchat:offline
-```
-
-### 环境变量（`run_offline.sh` / 容器内）
-
-| 变量 | 默认 | 说明 |
-| --- | --- | --- |
-| `RUN_INIT_DB` | `0` | `1`=启动时执行 `init_database.py --recreate-vs`（需可访问 Embedding API）；`0`=复用镜像内置知识库（断网可用）|
-| `STARTUP_ARGS` | `-a` | 传给 `startup.py`；`-a`=全部服务，`--all-api`=不带 WebUI |
-| `MOUNT_KB` | `0` | `1`=挂载 `$DATA_DIR/knowledge_base` 作为知识库 |
-| `MODEL_NAME` | 空 | 追加给 `startup.py -n` 的模型名 |
-| `IMAGE` | `langchain-chatchat:offline` | 镜像名 |
-| `TORCH_CPU_INDEX` | `download.pytorch.org/whl/cpu` | 构建期 CPU torch 源（仅 `build_online.sh`）|
-| `GZIP` | `0` | `1`=导出为 `.tar.gz`（仅 `export_image.sh`）|
-| `DATA_DIR` | `dist/data` | 日志等持久化目录 |
-| `WEBUI_PORT`/`API_PORT`/… | 见端口表 | 宿主机端口映射 |
-
-### 端口（`configs/server_config.py`）
-
-| 服务 | 端口 |
-| --- | --- |
-| WebUI | 8501 |
-| API | 7861 |
-| fschat-openai-api | 20000 |
-| controller | 20001 |
-| model-worker | 21010 / 21009 |
-
-> 外部访问一般只需 **8501**（WebUI）与 **7861**（API）。
-
-### 常见问题（FAQ）
-
-1. **导出 0 字节**：多为 `GZIP` 环境变量与 `gzip` 程序冲突；`docker/export_image.sh` 已用 `env -u GZIP gzip` 规避，直接重跑 `GZIP=1 ./docker/export_image.sh` 即可。
-2. **构建在 `pip install torch` 超时**：换清华 CPU 源 `TORCH_CPU_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cpu/`。
-3. **为何没有 nvidia/CUDA torch**：纯在线 API 部署无需 GPU；启动链仅需 `import torch`，CPU 版即可满足，故剔除 CUDA 栈以减小镜像。若需在容器内跑本地 GPU 模型，请改回完整 `requirements_openai.txt` + CUDA 版 torch。
-4. **配置不被覆盖**：镜像内置测试通过的 `configs/*.py`；`entrypoint.sh` 仅在其缺失时才执行 `copy_config_example.py` 生成。
-
-📄 完整步骤、原理与排障：[docs/DOCKER_OFFLINE_DEPLOY.md](docs/DOCKER_OFFLINE_DEPLOY.md)
+以下是原项目的通用安装说明；本分支 API 部署请以上述 Docker 指南为准，
+不要叠加安装 GPU 依赖或下载本地模型。
 
 ## 快速上手
 

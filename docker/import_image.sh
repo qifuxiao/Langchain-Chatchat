@@ -15,7 +15,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 IMAGE="${IMAGE:-langchain-chatchat:offline}"
-TAR_FILE="${1:-$ROOT_DIR/dist/${IMAGE//:/-}.tar}"
+SAFE_NAME="${IMAGE//:/-}"
+SAFE_NAME="${SAFE_NAME//\//-}"
+TAR_FILE="${1:-$ROOT_DIR/dist/${SAFE_NAME}.tar}"
 
 # 若未显式指定且默认 .tar 不存在，尝试 .tar.gz
 if [ ! -f "$TAR_FILE" ]; then

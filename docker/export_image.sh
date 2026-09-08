@@ -27,6 +27,7 @@ fi
 
 # 镜像名中的冒号不适合做文件名，替换为短横线
 SAFE_NAME="${IMAGE//:/-}"
+SAFE_NAME="${SAFE_NAME//\//-}"
 
 if [ "${GZIP:-0}" = "1" ]; then
     OUT_FILE="$OUT_DIR/${SAFE_NAME}.tar.gz"

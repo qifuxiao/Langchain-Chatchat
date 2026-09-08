@@ -33,3 +33,19 @@ dist/
 .idea/
 *.swp
 .DS_Store
+
+# Runtime secrets/configuration are injected at deployment, never baked in layers.
+.env
+.env.*
+!.env.example
+configs/*.py
+!configs/__init__.py
+configs2/
+data/
+.agents/
+.codex/
+*.tar
+*.tar.gz
+*.safetensors
+*.pth
+*.pt
